@@ -22,9 +22,9 @@ async function loadDict(){
 }
 
 /* ===================== Valeurs & barème ===================== */
-const LV={a:1,e:1,i:1,l:1,n:1,o:1,r:1,s:1,t:1,u:1,d:2,g:2,m:2,b:3,c:3,p:3,f:4,h:4,v:4,j:8,q:8,k:10,w:10,x:10,y:10,z:10};
+const LV={a:1,e:1,i:1,l:1,n:1,o:1,r:1,s:1,t:1,u:1,d:2,g:2,m:2,b:3,c:3,p:3,f:4,h:4,v:4,j:6,q:6,k:7,w:7,x:7,y:7,z:7};
 function tileValue(letters){let v=0;for(const c of letters)v+=LV[c]||0;return v;}
-const MULT={3:1,4:1.4,5:1.8,6:2.3,7:2.9,8:3.6,9:4.4};
+const MULT={3:0.8,4:1.4,5:1.8,6:2.3,7:2.9,8:3.6,9:4.4};
 function lenMult(n){return n>=10?5.2:(MULT[n]||0);}
 
 /* ===================== RNG déterministe ===================== */

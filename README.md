@@ -3,23 +3,18 @@
 Jeu de mots multijoueur en temps réel : relie les lettres pour former des mots.
 **100 % côté client** — aucun backend, aucune fonction serverless. Le multijoueur
 passe par du **WebRTC pair-à-pair** ([Trystero](https://github.com/dmotz/trystero),
-signalisation via relais Nostr publics). C'est donc un simple **site statique** :
-il s'héberge n'importe où.
+signalisation via relais Nostr publics). C'est donc un simple **site statique**.
 
 ## Structure
 
 ```
-index.html              # Coquille HTML (~9 Ko) : head + markup + <script src>
-css/
-  styles.css            # Tous les styles
-js/
-  app.js                # Logique du jeu
-  vendor/
-    trystero.min.js     # P2P WebRTC / Nostr (window.Trystero)
-    qrcode.min.js       # Générateur de QR code (window.QR)
-data/
-  dict.txt.gz           # Dictionnaire FR (gzip), chargé et décompressé dans le navigateur
-.nojekyll               # Désactive Jekyll (pour GitHub Pages)
+public/                 # tout ce qui est servi en ligne
+  index.html            # coquille HTML (~9 Ko) : head + markup + <script src>
+  css/styles.css        # tous les styles
+  js/app.js             # logique du jeu
+  js/vendor/            # trystero.min.js (P2P) + qrcode.min.js
+  data/dict.txt.gz      # dictionnaire FR (gzip), chargé et décompressé dans le navigateur
+wrangler.jsonc          # config de déploiement Cloudflare (sert le dossier public/)
 ```
 
 Auparavant tout tenait dans un seul fichier `liane (4).html` de ~567 Ko. Le contenu
@@ -30,41 +25,41 @@ désormais un fichier `.gz` externe récupéré par `fetch()` puis décompressé
 ## Développement local
 
 Comme `app.js` récupère `data/dict.txt.gz` par `fetch()`, **ouvrir `index.html`
-directement en `file://` ne marche pas** (le navigateur bloque `fetch` sur
-`file://`). Il faut un petit serveur HTTP :
+directement en `file://` ne marche pas**. Il faut un petit serveur HTTP servant le
+dossier `public/` :
 
 ```bash
-python3 -m http.server 8000
+python3 -m http.server 8000 -d public
 # puis ouvrir http://localhost:8000
 ```
 
-## Hébergement
+## Hébergement — Cloudflare (gratuit)
 
-Le site est statique et servi depuis la racine du dépôt — n'importe quel
-hébergeur statique convient. Recommandations gratuites et plus permissives que
-Netlify :
+Le déploiement se fait via **Cloudflare Workers · Static Assets**, piloté par
+`wrangler.jsonc` (qui sert le dossier `public/`). Gratuit, y compris pour un repo
+privé, avec bande passante illimitée.
 
-### Cloudflare Pages — le plus permissif (recommandé)
-Bande passante et requêtes **illimitées** sur le plan gratuit.
-1. https://dash.cloudflare.com → **Workers & Pages** → **Create** → **Pages** →
-   **Connect to Git**, choisir ce dépôt.
-2. **Build command** : *(vide)* — **Build output directory** : `/` (racine).
-3. Déployer. Chaque `push` redéploie automatiquement.
+### Mise en place (une fois)
+1. Merge de la branche sur `main` (Cloudflare déploie la branche de production).
+2. Dashboard Cloudflare → **Workers & Pages** → **Create** → **Import a repository**
+   → sélectionner `Lupshan/Ang-leBox`.
+3. Renseigner :
+   - **Project name** : `ang-lebox` *(doit correspondre au `name` de `wrangler.jsonc`)*
+   - **Build command** : *(laisser vide — aucun build)*
+   - **Deploy command** : `npx wrangler deploy` *(valeur par défaut)*
+4. **Deploy**.
 
-### GitHub Pages — le plus simple (le dépôt est déjà sur GitHub)
-Gratuit, aucune configuration de build.
-1. Repo → **Settings** → **Pages**.
-2. **Source** : *Deploy from a branch* → branche `main`, dossier `/ (root)`.
-3. Le fichier `.nojekyll` (déjà présent) évite tout traitement Jekyll.
+Ensuite, **chaque push sur `main` redéploie automatiquement** (les autres branches
+génèrent des *preview deployments*).
 
-> Limites indicatives GitHub Pages : ~1 Go de site, ~100 Go/mois de bande
-> passante — largement suffisant ici, mais Cloudflare Pages ne plafonne pas.
-
-Netlify continue de fonctionner sans changement (site statique, publish
-directory = racine).
+### Déploiement manuel (optionnel)
+```bash
+npx wrangler login
+npx wrangler deploy
+```
 
 ### Note sur `dict.txt.gz`
-Ces trois hébergeurs servent le `.gz` tel quel (sans `Content-Encoding: gzip`),
-et `app.js` décompresse côté navigateur. Par sécurité, si un hébergeur
-décompressait le fichier de manière transparente, `loadDict()` détecte le cas
-(en-tête gzip `1f 8b`) et utilise directement le texte — aucune action requise.
+Cloudflare sert le `.gz` tel quel (sans `Content-Encoding: gzip`) et `app.js`
+décompresse côté navigateur. Par sécurité, si un hébergeur décompressait le fichier
+de manière transparente, `loadDict()` détecte le cas (en-tête gzip `1f 8b`) et
+utilise directement le texte — aucune action requise.

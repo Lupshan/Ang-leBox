@@ -3,8 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
-<meta name="theme-color" content="#1a1033">
+<meta name="theme-color" content="#F5F2EA">
 <title>LIANE — relie les lettres, en ligne</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -29,14 +32,14 @@
     <div class="room-list" id="room-list"></div>
 
     <div class="home-2" style="margin-top:14px">
-      <button class="btn small" id="btn-create">＋ Créer une room</button>
+      <button class="btn small" id="btn-create">Créer une room</button>
       <button class="btn ghost small" id="btn-joincode">Rejoindre par code</button>
     </div>
 
     <div class="spacer"></div>
     <div class="home-2" style="margin-top:14px">
-      <button class="btn ghost small" id="btn-rules">📖 Règles</button>
-      <button class="btn ghost small" id="btn-dict">🔎 Dictionnaire</button>
+      <button class="btn ghost small" id="btn-rules">Règles</button>
+      <button class="btn ghost small" id="btn-dict">Dictionnaire</button>
     </div>
   </section>
 
@@ -51,7 +54,7 @@
       </div>
       <div style="display:flex;flex-direction:column;gap:6px;margin-left:auto;flex:none">
         <button class="cp" id="copy" style="margin:0">Copier</button>
-        <button class="cp" id="qrbtn" style="margin:0">📷 QR</button>
+        <button class="cp" id="qrbtn" style="margin:0">QR</button>
       </div>
     </div>
     <div class="field">
@@ -88,10 +91,10 @@
   <!-- JEU -->
   <section id="play" class="screen">
     <div class="top">
-      <button class="quit" id="quit" title="Quitter">✕</button>
+      <button class="quit" id="quit" title="Quitter">×</button>
       <div class="round" id="pl-round"></div>
       <div class="clock" id="pl-clock" style="margin-left:auto"></div>
-      <button class="quit" id="pausebtn" title="Pause">⏸</button>
+      <button class="quit" id="pausebtn" title="Pause">Pause</button>
     </div>
     <div class="timer" id="timerbar"><i id="timerfill"></i></div>
     <div class="scoreboard" id="scoreboard"></div>
@@ -111,7 +114,7 @@
   <!-- JEU : SUDOKU -->
   <section id="splay" class="screen">
     <div class="top">
-      <button class="quit" id="squit" title="Quitter">✕</button>
+      <button class="quit" id="squit" title="Quitter">×</button>
       <div class="round" id="s-round"></div>
       <div class="clock" id="s-clock" style="margin-left:auto">00:00</div>
     </div>
@@ -167,7 +170,7 @@
 
 <div class="pause-ov" id="pause-ov">
   <div class="pause-card">
-    <div class="pico">⏸</div>
+    <div class="pico">Partie en pause</div>
     <div class="ptitle" id="pause-who">Pause</div>
     <button class="btn" id="resumebtn">Reprendre</button>
   </div>
@@ -175,8 +178,8 @@
 
 <div class="pause-ov" id="sudwin-ov">
   <div class="pause-card">
-    <div class="pico">🏆</div>
-    <div class="ptitle" id="sudwin-who">a gagné cette manche !</div>
+    <div class="pico">Fin de manche</div>
+    <div class="ptitle" id="sudwin-who">a gagné cette manche</div>
     <button class="btn" id="sudwin-continue">Finir ma grille</button>
     <button class="btn ghost" id="sudwin-pass" style="min-width:210px">Passer</button>
   </div>
@@ -185,7 +188,7 @@
 <div class="modal" id="modal">
   <div class="modal-bg" id="modal-bg"></div>
   <div class="sheet">
-    <div class="sheet-head"><span id="modal-title"></span><button class="quit" id="modal-close">✕</button></div>
+    <div class="sheet-head"><span id="modal-title"></span><button class="quit" id="modal-close">×</button></div>
     <div class="sheet-body" id="modal-body"></div>
   </div>
 </div>

@@ -1,0 +1,10 @@
+{
+  // Déploiement Cloudflare (Workers · Static Assets).
+  // Site 100 % statique : aucun build. On sert uniquement le dossier public/.
+  // Deploy command (dans le dashboard Cloudflare) : npx wrangler deploy
+  "name": "ang-lebox",
+  "compatibility_date": "2025-01-01",
+  "assets": {
+    "directory": "./public"
+  }
+}

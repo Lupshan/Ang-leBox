@@ -1,0 +1,5 @@
+# Cache local de Wrangler (Cloudflare)
+.wrangler/
+
+# Dépendances / npx
+node_modules/

@@ -494,7 +494,7 @@ function renderLobby(){
 }
 const S_TIME_OPTS={
   words:[[60,'1min'],[90,'1min30'],[120,'2min'],[180,'3min']],
-  sudoku:[[180,'3min'],[300,'5min'],[480,'8min'],[720,'12min']]
+  sudoku:[[180,'3min'],[300,'5min'],[480,'8min'],[720,'12min'],[0,'∞']]
 };
 function applyGameUI(){
   const isSud=cfg.game==='sudoku';
@@ -725,7 +725,7 @@ function sTick(){
   if(sSettled)return;
   const ms=sElapsedMs();
   $('s-clock').textContent=fmtMMSS(ms/1000);
-  if(ms/1000>=cfg.time)settleSudoku('dnf',null);
+  if(cfg.time>0&&ms/1000>=cfg.time)settleSudoku('dnf',null);
 }
 function settleSudoku(status,timeSec){
   if(sSettled)return;sSettled=true;

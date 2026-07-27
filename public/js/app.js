@@ -606,7 +606,19 @@ function fitTiles(){const grid=$('grid');const t=grid.children[0];if(!t)return;g
 function tileEl(i){return $('grid').children[i];}
 
 const boardEl=$('board');
-function idxFromPoint(x,y){const el=document.elementFromPoint(x,y);if(!el)return -1;const t=el.closest('.tile');return t?+t.dataset.idx:-1;}
+function idxFromPoint(x,y){
+  const el=document.elementFromPoint(x,y);if(!el)return -1;
+  const t=el.closest('.tile');if(!t)return -1;
+  // Les cases sont carrées et collées : on n'active que le cœur de la case
+  // (disque central), pas les coins. Un tracé en diagonale traverse ainsi
+  // le coin partagé « dans le vide » sans accrocher les cases orthogonales,
+  // comme le faisaient les anciennes tuiles rondes espacées.
+  const r=t.getBoundingClientRect();
+  const dx=x-(r.left+r.width/2), dy=y-(r.top+r.height/2);
+  const rad=Math.min(r.width,r.height)*0.44;
+  if(dx*dx+dy*dy>rad*rad)return -1;
+  return +t.dataset.idx;
+}
 function addIdx(i){
   if(i<0||!PLAY.active)return;const path=PLAY.path;
   if(path.length&&path[path.length-1]===i)return;

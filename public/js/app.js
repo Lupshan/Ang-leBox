@@ -295,7 +295,7 @@ function renderRoomList(){
   if(!list.length){box.innerHTML='<div class="rl-empty">Aucune room publique en ligne pour l’instant.<br>Crée-en une, ou rejoins par code.</div>';return;}
   box.innerHTML=list.map(r=>`<button class="rl-item" data-id="${escapeHtml(r.id)}" data-name="${escapeHtml(encodeURIComponent(r.name))}" data-locked="${r.locked?1:0}">
     <span class="rl-name">${escapeHtml(r.name)}</span>
-    <span class="rl-meta">${r.locked?'<span class="lk">🔒</span> ':''}👥 ${r.count}${r.playing?' · en jeu':''}</span></button>`).join('');
+    <span class="rl-meta">${r.locked?'<span class="lk">privé</span> · ':''}${r.count} joueur${r.count>1?'s':''}${r.playing?' · en jeu':''}</span></button>`).join('');
   [...box.querySelectorAll('.rl-item')].forEach(el=>el.addEventListener('click',()=>tapRoom(el.dataset.id,decodeURIComponent(el.dataset.name),el.dataset.locked==='1')));
 }
 function tapRoom(id,name,locked){
@@ -409,7 +409,7 @@ function openJoinCodeModal(){
 function openPasswordModal(id,name){
   openModal('Room protégée',body=>{
     body.innerHTML=`
-      <p class="modal-note">🔒 « ${escapeHtml(name)} » demande un mot de passe.</p>
+      <p class="modal-note">« ${escapeHtml(name)} » demande un mot de passe.</p>
       <label class="modal-lab">Mot de passe</label>
       <input id="pw-in" class="modal-search" type="text" autocomplete="off" autocapitalize="off" spellcheck="false">
       <button class="btn" id="pw-go">Rejoindre</button>`;
@@ -440,10 +440,10 @@ function openQrModal(){
     try{const qr=window.QR(0,'M');qr.addData(link);qr.make();svg=qr.createSvgTag({scalable:true,margin:0});}catch(e){svg='';}
     body.innerHTML=`<p class="modal-note">Fais scanner ce QR à tes amis : il ouvre LIANE et rejoint directement « ${escapeHtml(cfg.name||curRoomName||curRoomId)} »${curPassword?' (mot de passe inclus)':''}.</p>
       <div class="qr-wrap">
-        <div class="qr-card">${svg||'<div style="color:#900;font-size:13px;text-align:center">QR indisponible</div>'}</div>
+        <div class="qr-card">${svg||'<div style="color:var(--accent);font-size:13px;text-align:center">QR indisponible</div>'}</div>
         <div class="qr-code-txt">code : ${escapeHtml(curRoomId)}</div>
       </div>
-      ${local?'<p class="modal-note" style="margin-top:14px;color:var(--gold)">⚠️ Page ouverte en local (file://). Le QR ne marchera que si tu héberges la page sur une URL HTTPS accessible aux autres appareils.</p>':''}`;
+      ${local?'<p class="modal-note" style="margin-top:14px;color:var(--accent)">Attention — page ouverte en local (file://). Le QR ne marchera que si tu héberges la page sur une URL HTTPS accessible aux autres appareils.</p>':''}`;
   });
 }
 $('qrbtn').addEventListener('click',openQrModal);
@@ -481,11 +481,11 @@ function renderLobby(){
   const rc=$('room-code');if(rc)rc.textContent=curRoomId;
   $('pcount').textContent=ids.length;
   const box=$('plist');box.innerHTML='';
-  ids.forEach(id=>{
+  ids.forEach((id,ix)=>{
     const it=document.createElement('div');it.className='pitem';
-    const dot=document.createElement('span');dot.className='dot';dot.style.color=colorFor(id);
-    const nm=document.createElement('span');nm.textContent=nameFor(id)+(id===selfId?' (toi)':'');
-    it.appendChild(dot);it.appendChild(nm);
+    const num=document.createElement('span');num.className='idx';num.textContent=ix+1;
+    const nm=document.createElement('span');nm.className='nm';nm.textContent=nameFor(id)+(id===selfId?' (toi)':'');
+    it.appendChild(num);it.appendChild(nm);
     if(id===hostId()){const b=document.createElement('span');b.className='badge';b.textContent='hôte';it.appendChild(b);}
     box.appendChild(it);
   });
@@ -560,7 +560,6 @@ function startRoundNet(round,seed){
   window.G={board:genBoard(seed,round)};
   live={};roundData={};finished=new Set();finishedSelf=false;
   myResult={words:[],seen:new Set(),total:0};
-  document.documentElement.style.setProperty('--accent',colorFor(selfId));
   $('pl-round').textContent='Manche '+round+'/'+cfg.rounds;
   show('play');
   renderBoard();updatePreview();renderChips();updateScoreboard();
@@ -623,8 +622,8 @@ function drawRibbon(){
   if(PLAY.path.length<1){svg.innerHTML='';return;}
   const pts=PLAY.path.map(i=>{const el=tileEl(i);return[el.offsetLeft+el.offsetWidth/2,el.offsetTop+el.offsetHeight/2];});
   const col=cssVar('--accent');let s='';
-  if(pts.length>1)s+=`<polyline points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="${col}" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" opacity="0.9" style="filter:drop-shadow(0 0 6px ${col})"/>`;
-  for(const p of pts)s+=`<circle cx="${p[0]}" cy="${p[1]}" r="6" fill="${col}"/>`;
+  if(pts.length>1)s+=`<polyline points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="${col}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`;
+  for(const p of pts)s+=`<circle cx="${p[0]}" cy="${p[1]}" r="4" fill="${col}"/>`;
   svg.innerHTML=s;
 }
 function currentWord(){return PLAY.path.map(i=>window.G.board.tiles[i].letters).join('');}
@@ -633,7 +632,7 @@ function updatePreview(){
   if(!w){pv.innerHTML='<span class="pv-word" style="color:var(--ink-faint);font-size:16px;letter-spacing:0">Trace un mot…</span>';return;}
   const {score,chars,mult,bonus}=scoreOf(PLAY.path,window.G.board);
   const ok=chars>=cfg.min&&isWord(w);
-  pv.innerHTML=`<span class="pv-word ${ok?'ok':'no'}">${w.toUpperCase()}</span><span class="pv-meta">${chars} lettres · ×${mult}${bonus>1?' · ★×2':''}<br><b style="color:${ok?'var(--good)':'var(--ink-faint)'}">${ok?'+'+score+' pts':'—'}</b></span>`;
+  pv.innerHTML=`<span class="pv-word ${ok?'ok':'no'}">${w.toUpperCase()}</span><span class="pv-meta">${chars} lettres · ×${mult}${bonus>1?' · ×2':''} · <b style="color:${ok?'var(--valid)':'var(--muted)'}">${ok?'+'+score+' pts':'—'}</b></span>`;
 }
 function submitWord(){
   const w=currentWord(),path=PLAY.path.slice();clearPath();if(!w)return;
@@ -662,7 +661,7 @@ function scoreboardHTML(){
   return ids.map(id=>{
     const sc=Number(id===selfId?myResult.total:((live[id]&&live[id].score)||(roundData[id]&&roundData[id].total)||0))||0;
     const fin=finished.has(id);
-    return `<span class="sb${id===selfId?' me':''}"><span class="dot" style="color:${colorFor(id)}"></span>${escapeHtml(nameFor(id))}<b>${sc}</b>${fin?'<span class="fin">✓</span>':''}</span>`;
+    return `<span class="sb${id===selfId?' me':''}"><span class="nm">${escapeHtml(nameFor(id))}</span><b>${sc}</b>${fin?'<span class="fin">✓</span>':''}</span>`;
   }).join('');
 }
 function updateScoreboard(){const h=scoreboardHTML();const sb=$('scoreboard');if(sb)sb.innerHTML=h;const wsb=$('wait-sb');if(wsb&&currentScreen==='waiting')wsb.innerHTML=h;}
@@ -686,7 +685,6 @@ function startSudokuRound(round,seed){
   sLocked=new Array(81);for(let i=0;i<81;i++)sLocked[i]=SUD.given[i]!==0;
   sSel=-1;sSettled=false;sMyStatus=null;sPenaltyMs=0;
   sudokuResults={};sudokuWinner=null;
-  document.documentElement.style.setProperty('--accent',colorFor(selfId));
   $('s-round').textContent='Manche '+round+'/'+cfg.rounds;
   $('sudwin-ov').classList.remove('on');
   show('splay');
@@ -779,13 +777,14 @@ function sudokuStatusHTML(){
     const r=sudokuResults[id];
     let label='…';
     if(r){
-      if(r.status==='won')label='🏆 '+fmtMMSS(r.time);
+      if(r.status==='won')label='✓ '+fmtMMSS(r.time);
       else if(r.status==='finished')label=fmtMMSS(r.time);
       else if(r.status==='passed')label='passé';
       else if(r.status==='dnf')label='non fini';
     }
     const cls='sud-mini'+(r&&r.status==='won'?' gold':'');
-    return `<span class="${cls}"><span class="dot" style="color:${colorFor(id)}"></span>${escapeHtml(nameFor(id))}<b>${label}</b></span>`;
+    const dotc=r?'var(--valid)':'var(--muted)';
+    return `<span class="${cls}"><span class="dot" style="color:${dotc}"></span><span class="nm">${escapeHtml(nameFor(id))}</span><b>${label}</b></span>`;
   }).join('');
 }
 function renderSudokuStatus(){
@@ -824,7 +823,7 @@ function renderCorrectionSudoku(){
     const r=sudokuResults[id];
     let statusTxt='non terminé';
     if(r){
-      if(r.status==='won')statusTxt='🏆 gagnant · '+fmtMMSS(r.time);
+      if(r.status==='won')statusTxt='gagnant · '+fmtMMSS(r.time);
       else if(r.status==='finished')statusTxt='terminé · '+fmtMMSS(r.time);
       else if(r.status==='passed')statusTxt='a passé';
       else if(r.status==='dnf')statusTxt='non fini (temps écoulé)';
@@ -913,10 +912,10 @@ function renderResults(){
   const order=ids.map(id=>({id,s:totals[id]||0})).sort((a,b)=>b.s-a.s);
   const solo=ids.length<=1;
   const win=order[0];
-  $('res-title').textContent=solo?'Terminé !':'🏆 '+nameFor(win.id);
+  $('res-title').textContent=solo?'Terminé':nameFor(win.id);
   $('res-sub').textContent=solo?((totals[selfId]||0)+' points'):((win.s)+' points');
   const lead=$('res-lead');lead.innerHTML='';
-  order.forEach((o,rk)=>{const row=document.createElement('div');row.className='lrow'+(rk===0&&!solo?' win':'');row.innerHTML=`<span class="rk">${rk+1}</span><span class="dot" style="color:${colorFor(o.id)}"></span><span class="nm">${escapeHtml(nameFor(o.id))}${o.id===selfId?' (toi)':''}</span><span class="sc">${o.s}</span>`;lead.appendChild(row);});
+  order.forEach((o,rk)=>{const row=document.createElement('div');row.className='lrow'+(rk===0&&!solo?' win':'');row.innerHTML=`<span class="rk">${rk+1}</span><span class="nm">${escapeHtml(nameFor(o.id))}${o.id===selfId?' (toi)':''}</span><span class="sc">${o.s}</span>`;lead.appendChild(row);});
   const host=isHost();
   $('res-replay').style.display=host?'block':'none';
   $('res-wait').textContent=host?'':"En attente que l'hôte relance…";
@@ -944,11 +943,11 @@ function buildRules(body){
   const multRows=[3,4,5,6,7,8,9].map(n=>`<div class="rrow"><span class="rk">${n} lettres</span><span class="rv">×${MULT[n]}</span></div>`).join('')+`<div class="rrow"><span class="rk">10 et +</span><span class="rv">×5.2</span></div>`;
   body.innerHTML=`
    <div class="rsec"><h3>Le but</h3><p>Relie des lettres <b>voisines</b> (côtés et diagonales) pour former des mots français. Chaque tuile ne sert qu'une fois par mot. Plus tu trouves de mots, et plus ils sont longs, plus tu marques.</p></div>
-   <div class="rsec"><h3>Le calcul des points</h3><p>Points d'un mot = <b>(somme des valeurs des lettres)</b> × <b>(multiplicateur de longueur)</b> × <b>bonus ★</b>, arrondi.</p></div>
+   <div class="rsec"><h3>Le calcul des points</h3><p>Points d'un mot = <b>(somme des valeurs des lettres)</b> × <b>(multiplicateur de longueur)</b> × <b>bonus ×2</b>, arrondi.</p></div>
    <div class="rsec"><h3>Plus c'est long, plus ça paie</h3><div class="rtable">${multRows}</div></div>
    <div class="rsec"><h3>Valeur des lettres</h3><div class="rtable">${letterRows}</div></div>
-   <div class="rsec"><h3>La tuile ★</h3><p>Un mot qui passe par la tuile dorée voit <b>tout son score doublé</b> (×2). C'est là que se font les gros scores.</p></div>
-   <div class="rsec"><h3>Bon à savoir</h3><p>Les digrammes (<b>QU</b>, <b>CH</b>, <b>OU</b>…) comptent comme leurs lettres, pour la longueur comme pour la valeur. Vise les mots longs qui passent par la ★ et par les lettres chères (K, W, X, Y, Z, J, Q). Le dictionnaire retenu : mots de 3 à 9 lettres, sans accents.</p></div>`;
+   <div class="rsec"><h3>La tuile ×2</h3><p>Un mot qui passe par la tuile bonus voit <b>tout son score doublé</b> (×2). C'est là que se font les gros scores.</p></div>
+   <div class="rsec"><h3>Bon à savoir</h3><p>Les digrammes (<b>QU</b>, <b>CH</b>, <b>OU</b>…) comptent comme leurs lettres, pour la longueur comme pour la valeur. Vise les mots longs qui passent par la tuile ×2 et par les lettres chères (K, W, X, Y, Z, J, Q). Le dictionnaire retenu : mots de 3 à 9 lettres, sans accents.</p></div>`;
 }
 function buildDict(body){
   body.innerHTML=`<p class="modal-note">Dictionnaire du jeu : ${WORDS.length.toLocaleString('fr-FR')} mots français de 3 à 9 lettres, sans accents ni tirets. Tape le début d'un mot pour vérifier s'il est accepté.</p>

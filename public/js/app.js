@@ -664,7 +664,7 @@ function flash(txt,good,path){
 }
 function renderChips(){
   const box=$('chips');box.innerHTML='';
-  [...myResult.words].reverse().forEach(w=>{const c=document.createElement('span');c.className='chip wclick'+(w.bonus?' b':'');c.dataset.def=w.word;c.innerHTML=w.word.toUpperCase()+'<b>+'+w.score+'</b>';box.appendChild(c);});
+  [...myResult.words].reverse().forEach(w=>{const c=document.createElement('span');c.className='chip'+(w.bonus?' b':'');c.innerHTML=w.word.toUpperCase()+'<b>+'+w.score+'</b>';box.appendChild(c);});
   $('found-count').textContent=myResult.words.length+(myResult.words.length>1?' mots':' mot');
   $('found-total').textContent=myResult.total+' pts';
 }
@@ -905,7 +905,7 @@ function renderCorrection(){
     box.appendChild(card);
   });
   const best=[...window.G.board.solution.values()].sort((a,b)=>b.score-a.score).slice(0,12);
-  $('corr-best').innerHTML=best.map(b=>{const w=b.path.map(i=>window.G.board.tiles[i].letters).join('');return `<span class="chip wclick" data-def="${w}">${w.toUpperCase()}<b>+${b.score}</b></span>`;}).join('')+`<button class="chip" style="border-style:dashed;color:var(--ink);cursor:pointer" onclick="openWordsModal()">Voir les ${window.G.board.solution.size} mots →</button>`;
+  $('corr-best').innerHTML=best.map(b=>{const w=b.path.map(i=>window.G.board.tiles[i].letters).join('');return `<span class="chip">${w.toUpperCase()}<b>+${b.score}</b></span>`;}).join('')+`<button class="chip" style="border-style:dashed;color:var(--ink);cursor:pointer" onclick="openWordsModal()">Voir les ${window.G.board.solution.size} mots →</button>`;
   const host=isHost(),last=curRound>=cfg.rounds;
   $('corr-next').style.display=host?'block':'none';
   $('corr-next').textContent=last?'Voir les résultats':'Manche suivante';
@@ -962,7 +962,7 @@ function buildRules(body){
    <div class="rsec"><h3>Bon à savoir</h3><p>Les digrammes (<b>QU</b>, <b>CH</b>, <b>OU</b>…) comptent comme leurs lettres, pour la longueur comme pour la valeur. Vise les mots longs qui passent par la tuile ×2 et par les lettres chères (K, W, X, Y, Z, J, Q). Le dictionnaire retenu : mots de 3 à 9 lettres, sans accents.</p></div>`;
 }
 function buildDict(body){
-  body.innerHTML=`<p class="modal-note">Dictionnaire du jeu : ${WORDS.length.toLocaleString('fr-FR')} mots français de 3 à 9 lettres, sans accents ni tirets. Tape le début d'un mot pour vérifier s'il est accepté. Touche un mot pour sa définition.</p>
+  body.innerHTML=`<p class="modal-note">Dictionnaire du jeu : ${WORDS.length.toLocaleString('fr-FR')} mots français de 3 à 9 lettres, sans accents ni tirets. Tape le début d'un mot pour vérifier s'il est accepté.</p>
     <input id="dict-q" class="modal-search" type="text" placeholder="ex : cha…" autocomplete="off" autocapitalize="off" spellcheck="false">
     <div class="modal-count" id="dict-count">Tape au moins 2 lettres.</div>
     <div class="wordgrid" id="dict-res"></div>`;
@@ -973,81 +973,22 @@ function buildDict(body){
     let total=0;const out=[];
     for(let i=lb(v);i<WORDS.length&&WORDS[i].startsWith(v);i++){total++;if(out.length<500)out.push(WORDS[i]);}
     cnt.textContent=total?(total+' mot'+(total>1?'s':'')+' commençant par « '+v+' »'+(total>out.length?' — 500 affichés':'')):('aucun mot commençant par « '+v+' »');
-    res.innerHTML=out.map(w=>`<span class="wchip wclick" data-def="${w}">${w}</span>`).join('');
+    res.innerHTML=out.map(w=>`<span class="wchip">${w}</span>`).join('');
   }
   q.addEventListener('input',run);setTimeout(()=>{try{q.focus();}catch(e){}},60);
 }
 function openRules(){openModal('Règles & points',buildRules);}
 function openDict(){openModal('Dictionnaire',buildDict);}
-
-/* ===================== Définitions (Wiktionnaire, à la demande) ===================== */
-const defCache={};
-function stripDefHtml(html){
-  try{return (new DOMParser().parseFromString(String(html),'text/html').body.textContent||'').trim();}
-  catch(e){return String(html).replace(/<[^>]*>/g,'').trim();}
-}
-function extractFrDefs(json){
-  if(!json||typeof json!=='object')return null;
-  let items=Array.isArray(json.fr)?json.fr:[];
-  if(!items.length){ // repli : repérer les entrées dont la langue est « Français »
-    for(const v of Object.values(json)) if(Array.isArray(v)) for(const it of v) if(/fran[çc]ais/i.test(it&&it.language||'')) items.push(it);
-  }
-  const out=[];
-  for(const sec of items){
-    const defs=(sec.definitions||[]).map(d=>stripDefHtml(d&&d.definition)).filter(Boolean).slice(0,4);
-    if(defs.length)out.push({pos:sec.partOfSpeech||'',defs});
-  }
-  return out.length?out:null;
-}
-async function restDef(title){
-  const r=await fetch('https://fr.wiktionary.org/api/rest_v1/page/definition/'+encodeURIComponent(title),{headers:{'Accept':'application/json'}});
-  if(!r.ok)return null;
-  const sections=extractFrDefs(await r.json());
-  return sections?{title,sections}:null;
-}
-async function fetchDef(word){
-  if(word in defCache)return defCache[word];
-  let res=null;
-  try{res=await restDef(word);}catch(e){}
-  if(!res){ // notre liste est sans accents : retrouver le vrai titre via la recherche
-    try{
-      const s=await fetch('https://fr.wiktionary.org/w/api.php?origin=*&format=json&action=query&list=search&srlimit=1&srsearch='+encodeURIComponent(word));
-      if(s.ok){const hit=(((await s.json()).query||{}).search||[])[0];
-        if(hit&&hit.title&&hit.title.toLowerCase()!==word)res=await restDef(hit.title);}
-    }catch(e){}
-  }
-  defCache[word]=res;
-  return res;
-}
-function openDefinition(word){
-  const w=(word||'').toLowerCase().replace(/[^a-zà-ÿ'-]/g,'');
-  if(!w)return;
-  const title=w.charAt(0).toUpperCase()+w.slice(1);
-  const searchUrl='https://fr.wiktionary.org/w/index.php?search='+encodeURIComponent(w);
-  const linkBtn=`<a class="btn ghost small" href="${searchUrl}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;margin-top:14px">Chercher sur le Wiktionnaire</a>`;
-  openModal(title,body=>{
-    body.innerHTML='<div class="modal-count" id="def-state">Recherche de la définition…</div><div id="def-body"></div>';
-    const st=body.querySelector('#def-state'),db=body.querySelector('#def-body');
-    fetchDef(w).then(res=>{
-      if(!res){st.textContent='Pas de définition trouvée pour « '+w+' ».';db.innerHTML=linkBtn;return;}
-      st.textContent='';
-      db.innerHTML=res.sections.map(sec=>
-        `<div class="rsec"><h3>${escapeHtml(sec.pos||'Définition')}</h3>${sec.defs.map(d=>`<p>${escapeHtml(d)}</p>`).join('')}</div>`
-      ).join('')+`<p class="modal-note" style="margin-top:12px">Source : <a href="https://fr.wiktionary.org/wiki/${encodeURIComponent(res.title)}" target="_blank" rel="noopener noreferrer">Wiktionnaire</a> — CC BY-SA</p>`;
-    }).catch(()=>{st.textContent='Définition indisponible (pas de connexion ?).';db.innerHTML=linkBtn;});
-  });
-}
-document.addEventListener('click',e=>{const el=e.target.closest('[data-def]');if(el){e.preventDefault();openDefinition(el.getAttribute('data-def'));}});
 function openWordsModal(){
   if(!window.G||!window.G.board)return;
   const sol=[...window.G.board.solution.entries()].map(([w,v])=>({w:w,s:v.score}));
   sol.sort((a,b)=>b.s-a.s||a.w.localeCompare(b.w));
   openModal('Tous les mots — '+sol.length,body=>{
-    body.innerHTML=`<p class="modal-note">Tous les mots trouvables sur cette grille, triés par points. Filtre pour retrouver un mot précis. Touche un mot pour sa définition.</p>
+    body.innerHTML=`<p class="modal-note">Tous les mots trouvables sur cette grille, triés par points. Filtre pour retrouver un mot précis.</p>
       <input id="w-q" class="modal-search" type="text" placeholder="filtrer…" autocomplete="off" autocapitalize="off" spellcheck="false">
       <div class="wordgrid" id="w-res"></div>`;
     const res=body.querySelector('#w-res'),qq=body.querySelector('#w-q');
-    function draw(f){const list=f?sol.filter(x=>x.w.includes(f)):sol;res.innerHTML=list.map(x=>`<span class="wchip wclick" data-def="${x.w}">${x.w.toUpperCase()}<b>${x.s}</b></span>`).join('');}
+    function draw(f){const list=f?sol.filter(x=>x.w.includes(f)):sol;res.innerHTML=list.map(x=>`<span class="wchip">${x.w.toUpperCase()}<b>${x.s}</b></span>`).join('');}
     draw('');qq.addEventListener('input',()=>draw(normWord(qq.value)));
   });
 }

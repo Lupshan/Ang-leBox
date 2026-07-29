@@ -598,7 +598,7 @@ function renderBoard(){
   grid.style.setProperty('--cols',SIZE);
   // interstice large entre jetons : c'est lui qui rend le tracé lisible (README §grille)
   grid.style.setProperty('--gap',SIZE>=6?'clamp(8px,2.2vw,12px)':SIZE<=4?'clamp(14px,4.4vw,22px)':'clamp(11px,3.4vw,16px)');
-  window.G.board.tiles.forEach((t,i)=>{const el=document.createElement('div');el.className='tile'+(i===window.G.board.bonus?' bonus':'');el.dataset.idx=i;const L=t.letters;const letter=L.length>1?L[0].toUpperCase()+'<span class="sub">'+L.slice(1)+'</span>':L.toUpperCase();el.innerHTML=letter+'<span class="val">'+tileValue(L)+'</span>';grid.appendChild(el);});
+  window.G.board.tiles.forEach((t,i)=>{const el=document.createElement('div');el.className='tile'+(i===window.G.board.bonus?' bonus':'');el.dataset.idx=i;const L=t.letters;const letter=L.length>1?L[0].toUpperCase()+'<span class="sub">'+L.slice(1)+'</span>':L.toUpperCase();el.innerHTML=letter;grid.appendChild(el);});
   fitTiles();clearPath();
 }
 function fitTiles(){const grid=$('grid');const t=grid.children[0];if(!t)return;grid.style.setProperty('--tsize',Math.min(t.clientWidth*0.42,38)+'px');}

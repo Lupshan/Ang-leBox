@@ -253,14 +253,13 @@ h2.title{font-family:var(--font-display); font-weight:400; font-size:clamp(40px,
   cursor:pointer; user-select:none;
   transition:background 110ms ease,color 110ms ease,transform 110ms ease,box-shadow 110ms ease}
 .tile .sub{font-size:.6em; letter-spacing:0}
-.tile .val{position:absolute; right:12%; bottom:14%; font-family:var(--font-data); font-size:10px;
-  line-height:1; color:var(--muted); pointer-events:none}
 .tile.on{background:var(--trail); box-shadow:0 0 0 2px var(--accent-ring-soft)}
 .tile.last{background:var(--accent-surface); box-shadow:0 0 0 3px var(--accent),0 3px 0 var(--accent-relief);
   transform:translateY(-2px)}
-.tile.last .val{color:var(--accent)}
-.tile.bonus::after{content:"×2"; position:absolute; top:10%; right:12%;
-  font-family:var(--font-data); font-size:9px; letter-spacing:.02em; color:var(--accent)}
+.tile.bonus::after{content:"×2"; position:absolute; top:7%; right:7%;
+  font-family:var(--font-data); font-size:11px; font-weight:600; letter-spacing:.01em; line-height:1;
+  color:var(--accent); background:var(--paper-tile); padding:2px 5px; border-radius:8px;
+  box-shadow:0 0 0 1.5px var(--accent); pointer-events:none}
 .tile.good{animation:tgood .45s ease} .tile.bad{animation:nudge .3s ease}
 @keyframes tgood{50%{transform:translateY(-3px)}}
 
@@ -314,7 +313,6 @@ h2.title{font-family:var(--font-display); font-weight:400; font-size:clamp(40px,
   padding:8px; border-radius:12px; background:var(--tray)}
 .board-mini .grid{gap:6px}
 .board-mini .tile{font-size:var(--tsize,14px); box-shadow:0 1px 0 var(--rule)}
-.board-mini .val{display:none}
 .best .h{font-family:var(--font-data); font-size:10px; letter-spacing:.12em; text-transform:uppercase;
   color:var(--muted); margin:18px 0 6px; padding-bottom:8px; border-bottom:1px solid var(--ink)}
 .empty{color:var(--muted); font-size:14px; font-style:italic}

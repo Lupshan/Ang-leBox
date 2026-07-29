@@ -181,7 +181,6 @@ function cssVar(v){return getComputedStyle(document.documentElement).getProperty
 function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('on');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('on'),1800);}
 
 /* ===================== Réseau (Trystero) ===================== */
-const PALETTE=['#34e0d0','#ff5c9e','#ffc04a','#a3e635','#7c9cff','#ff8a5c','#c98bff','#4ade80'];
 const selfId = window.Trystero ? window.Trystero.selfId : 'local';
 let room=null, act={}, netReady=false;
 let ME={name:'Joueur',t:0};
@@ -204,7 +203,6 @@ function hostId(){
   return best;
 }
 function isHost(){return hostId()===selfId;}
-function colorFor(id){const i=rosterIds().indexOf(id);return PALETTE[(i<0?0:i)%PALETTE.length];}
 function nameFor(id){return id===selfId?ME.name:(peers[id]&&peers[id].name)||'Joueur';}
 
 function joinNet(code,password){
@@ -482,7 +480,7 @@ function renderLobby(){
   $('pcount').textContent=ids.length;
   const box=$('plist');box.innerHTML='';
   ids.forEach((id,ix)=>{
-    const it=document.createElement('div');it.className='pitem';
+    const it=document.createElement('div');it.className='pitem'+(id===selfId?' me':'');
     const num=document.createElement('span');num.className='idx';num.textContent=ix+1;
     const nm=document.createElement('span');nm.className='nm';nm.textContent=nameFor(id)+(id===selfId?' (toi)':'');
     it.appendChild(num);it.appendChild(nm);
@@ -494,7 +492,7 @@ function renderLobby(){
 }
 const S_TIME_OPTS={
   words:[[60,'1min'],[90,'1min30'],[120,'2min'],[180,'3min']],
-  sudoku:[[180,'3min'],[300,'5min'],[480,'8min'],[720,'12min'],[0,'∞']]
+  sudoku:[[180,'3min'],[300,'5min'],[480,'8min'],[720,'12min'],[0,'SANS']]
 };
 function applyGameUI(){
   const isSud=cfg.game==='sudoku';
@@ -598,8 +596,9 @@ function setPaused(p,who){
 function renderBoard(){
   const grid=$('grid');grid.innerHTML='';
   grid.style.setProperty('--cols',SIZE);
-  grid.style.setProperty('--gap',SIZE>=6?'1.9vw':SIZE<=4?'3.4vw':'min(2.6vw,13px)');
-  window.G.board.tiles.forEach((t,i)=>{const el=document.createElement('div');el.className='tile'+(i===window.G.board.bonus?' bonus':'');el.dataset.idx=i;const L=t.letters;el.innerHTML=L.length>1?L[0].toUpperCase()+'<span class="sub">'+L.slice(1)+'</span>':L.toUpperCase();grid.appendChild(el);});
+  // interstice large entre jetons : c'est lui qui rend le tracé lisible (README §grille)
+  grid.style.setProperty('--gap',SIZE>=6?'clamp(8px,2.2vw,12px)':SIZE<=4?'clamp(14px,4.4vw,22px)':'clamp(11px,3.4vw,16px)');
+  window.G.board.tiles.forEach((t,i)=>{const el=document.createElement('div');el.className='tile'+(i===window.G.board.bonus?' bonus':'');el.dataset.idx=i;const L=t.letters;const letter=L.length>1?L[0].toUpperCase()+'<span class="sub">'+L.slice(1)+'</span>':L.toUpperCase();el.innerHTML=letter+'<span class="val">'+tileValue(L)+'</span>';grid.appendChild(el);});
   fitTiles();clearPath();
 }
 function fitTiles(){const grid=$('grid');const t=grid.children[0];if(!t)return;grid.style.setProperty('--tsize',Math.min(t.clientWidth*0.42,38)+'px');}
@@ -627,24 +626,33 @@ function addIdx(i){
   if(path.length&&!ADJ[path[path.length-1]].includes(i))return;
   path.push(i);paintPath();
 }
-function paintPath(){document.querySelectorAll('.tile.on').forEach(t=>t.classList.remove('on'));PLAY.path.forEach(i=>tileEl(i).classList.add('on'));drawRibbon();updatePreview();}
-function clearPath(){PLAY.path=[];document.querySelectorAll('.tile.on').forEach(t=>t.classList.remove('on'));drawRibbon();updatePreview();}
+function paintPath(){
+  document.querySelectorAll('.tile.on,.tile.last').forEach(t=>t.classList.remove('on','last'));
+  const n=PLAY.path.length;
+  PLAY.path.forEach((i,k)=>{const el=tileEl(i);el.classList.add('on');if(k===n-1)el.classList.add('last');});
+  drawRibbon();updatePreview();
+}
+function clearPath(){PLAY.path=[];document.querySelectorAll('.tile.on,.tile.last').forEach(t=>t.classList.remove('on','last'));drawRibbon();updatePreview();}
 function drawRibbon(){
+  // Une seule polyligne, tracée DERRIÈRE les jetons opaques : seule la portion
+  // qui passe dans l'interstice est visible. Épaisseur ≈ interstice pour égaliser
+  // liaisons droites et diagonales (README §Le tracé). Pas de segments séparés,
+  // stroke-linejoin round pour éviter les encoches aux sommets.
   const svg=$('ribbon'),grid=$('grid');svg.setAttribute('viewBox',`0 0 ${grid.clientWidth} ${grid.clientHeight}`);
-  if(PLAY.path.length<1){svg.innerHTML='';return;}
+  if(PLAY.path.length<2){svg.innerHTML='';return;}
   const pts=PLAY.path.map(i=>{const el=tileEl(i);return[el.offsetLeft+el.offsetWidth/2,el.offsetTop+el.offsetHeight/2];});
-  const col=cssVar('--accent');let s='';
-  if(pts.length>1)s+=`<polyline points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="${col}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`;
-  for(const p of pts)s+=`<circle cx="${p[0]}" cy="${p[1]}" r="4" fill="${col}"/>`;
-  svg.innerHTML=s;
+  let gap=14;
+  if(grid.children.length>1){const a=grid.children[0],b=grid.children[1];gap=Math.max(8,b.offsetLeft-(a.offsetLeft+a.offsetWidth));}
+  const col=cssVar('--accent');
+  svg.innerHTML=`<polyline points="${pts.map(p=>p.join(',')).join(' ')}" fill="none" stroke="${col}" stroke-width="${gap}" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.92"/>`;
 }
 function currentWord(){return PLAY.path.map(i=>window.G.board.tiles[i].letters).join('');}
 function updatePreview(){
   const pv=$('preview'),w=currentWord();
-  if(!w){pv.innerHTML='<span class="pv-word" style="color:var(--ink-faint);font-size:16px;letter-spacing:0">Trace un mot…</span>';return;}
+  if(!w){pv.innerHTML='<span class="pv-meta">glisse pour tracer</span>';return;}
   const {score,chars,mult,bonus}=scoreOf(PLAY.path,window.G.board);
   const ok=chars>=cfg.min&&isWord(w);
-  pv.innerHTML=`<span class="pv-word ${ok?'ok':'no'}">${w.toUpperCase()}</span><span class="pv-meta">${chars} lettres · ×${mult}${bonus>1?' · ×2':''} · <b style="color:${ok?'var(--valid)':'var(--muted)'}">${ok?'+'+score+' pts':'—'}</b></span>`;
+  pv.innerHTML=`<span class="pv-word${ok?'':' no'}">${w.toUpperCase()}</span><span class="pv-meta${ok?' ok':''}">${chars} lettres · ×${mult}${bonus>1?' · ×2':''} · <b>${ok?'+'+score+' pts':'—'}</b></span>`;
 }
 function submitWord(){
   const w=currentWord(),path=PLAY.path.slice();clearPath();if(!w)return;
@@ -723,7 +731,7 @@ function selectSCell(i){
 function renderNumpad(){
   const box=$('numpad');box.innerHTML='';
   for(let d=1;d<=9;d++){const b=document.createElement('button');b.textContent=String(d);b.addEventListener('click',()=>numInput(d));box.appendChild(b);}
-  const era=document.createElement('button');era.className='era';era.textContent='⌫';era.addEventListener('click',()=>numInput(0));box.appendChild(era);
+  const era=document.createElement('button');era.className='era';era.textContent='EFF.';era.addEventListener('click',()=>numInput(0));box.appendChild(era);
 }
 function numInput(d){
   if(sSettled||sSel<0||sLocked[sSel])return;
@@ -841,7 +849,7 @@ function renderCorrectionSudoku(){
       else if(r.status==='dnf')statusTxt='non fini (temps écoulé)';
     }
     const card=document.createElement('div');card.className='pcard card';
-    card.innerHTML=`<div class="ph"><span class="dot" style="color:${colorFor(id)}"></span>${escapeHtml(nameFor(id))}${id===selfId?' (toi)':''}<span class="rt">${statusTxt} · +${pts[id]||0} pts · total ${Number(totals[id])||0}</span></div>`;
+    card.innerHTML=`<div class="ph"><span class="dot" style="color:var(--muted)"></span>${escapeHtml(nameFor(id))}${id===selfId?' (toi)':''}<span class="rt">${statusTxt} · +${pts[id]||0} pts · total ${Number(totals[id])||0}</span></div>`;
     box.appendChild(card);
   });
   const bestSec=document.querySelector('.best');if(bestSec)bestSec.style.display='none';
@@ -901,11 +909,11 @@ function renderCorrection(){
     const card=document.createElement('div');card.className='pcard card';
     let chips='<span class="empty">'+(r?'aucun mot trouvé':'…')+'</span>';
     if(r&&r.words.length)chips=r.words.slice().sort((a,b)=>b.score-a.score).map(w=>`<span class="chip${w.bonus?' b':''}">${escapeHtml(w.word.toUpperCase())}<b>+${Number(w.score)||0}</b></span>`).join('');
-    card.innerHTML=`<div class="ph"><span class="dot" style="color:${colorFor(id)}"></span>${escapeHtml(nameFor(id))}${id===selfId?' (toi)':''}<span class="rt">${r?(Number(r.total)||0):0} pts · total ${Number(totals[id])||0}</span></div><div class="chips" style="max-height:none">${chips}</div>`;
+    card.innerHTML=`<div class="ph"><span class="dot" style="color:var(--muted)"></span>${escapeHtml(nameFor(id))}${id===selfId?' (toi)':''}<span class="rt">${r?(Number(r.total)||0):0} pts · total ${Number(totals[id])||0}</span></div><div class="chips" style="max-height:none">${chips}</div>`;
     box.appendChild(card);
   });
   const best=[...window.G.board.solution.values()].sort((a,b)=>b.score-a.score).slice(0,12);
-  $('corr-best').innerHTML=best.map(b=>{const w=b.path.map(i=>window.G.board.tiles[i].letters).join('');return `<span class="chip">${w.toUpperCase()}<b>+${b.score}</b></span>`;}).join('')+`<button class="chip" style="border-style:dashed;color:var(--ink);cursor:pointer" onclick="openWordsModal()">Voir les ${window.G.board.solution.size} mots →</button>`;
+  $('corr-best').innerHTML=best.map(b=>{const w=b.path.map(i=>window.G.board.tiles[i].letters).join('');return `<span class="chip">${w.toUpperCase()}<b>+${b.score}</b></span>`;}).join('')+`<button class="chip" style="border-style:dashed;color:var(--ink);cursor:pointer" onclick="openWordsModal()">Voir les ${window.G.board.solution.size} mots</button>`;
   const host=isHost(),last=curRound>=cfg.rounds;
   $('corr-next').style.display=host?'block':'none';
   $('corr-next').textContent=last?'Voir les résultats':'Manche suivante';
@@ -924,8 +932,11 @@ function renderResults(){
   const order=ids.map(id=>({id,s:totals[id]||0})).sort((a,b)=>b.s-a.s);
   const solo=ids.length<=1;
   const win=order[0];
+  // Le résultat se dit en écart, jamais en superlatif (charte de copy).
+  const margin=order.length>1?win.s-order[1].s:0;
   $('res-title').textContent=solo?'Terminé':nameFor(win.id);
-  $('res-sub').textContent=solo?((totals[selfId]||0)+' points'):((win.s)+' points');
+  $('res-sub').textContent=solo?((totals[selfId]||0)+' points')
+    :(margin>0?('gagne de '+margin+' point'+(margin>1?'s':'')):"l'emporte à égalité");
   const lead=$('res-lead');lead.innerHTML='';
   order.forEach((o,rk)=>{const row=document.createElement('div');row.className='lrow'+(rk===0&&!solo?' win':'');row.innerHTML=`<span class="rk">${rk+1}</span><span class="nm">${escapeHtml(nameFor(o.id))}${o.id===selfId?' (toi)':''}</span><span class="sc">${o.s}</span>`;lead.appendChild(row);});
   const host=isHost();

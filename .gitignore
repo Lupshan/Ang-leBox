@@ -3,3 +3,9 @@
 
 # Dépendances / npx
 node_modules/
+
+# Playwright (tests E2E)
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

@@ -33,6 +33,36 @@ python3 -m http.server 8000 -d public
 # puis ouvrir http://localhost:8000
 ```
 
+## Tests (E2E) & CI
+
+Le jeu étant 100 % côté client, la logique (dictionnaire, barème, RNG, génération
+de grille et de sudoku) est fortement couplée au DOM. Les tests sont donc des
+**tests bout-en-bout** qui pilotent un vrai Chromium via
+[Playwright](https://playwright.dev), sur le site servi tel qu'en prod.
+
+```bash
+npm install                 # installe Playwright (dev only)
+npx playwright install chromium   # télécharge le navigateur (une fois)
+npm test                    # lance toute la suite E2E
+npm run report              # ouvre le dernier rapport HTML
+```
+
+Playwright démarre lui-même le serveur statique (`python3 -m http.server`, cf.
+`playwright.config.js`) : rien d'autre à lancer. Ce qui est couvert (`tests/`) :
+
+- **`logic.spec.js`** — logique pure appelée directement dans la page
+  (`isWord`, barème `scoreOf`/`tileValue`, RNG déterministe, `genBoard` &
+  résolution, `genSudoku` à solution unique, helpers texte).
+- **`home.spec.js`** — accueil, modales Règles/Dictionnaire, création de room, lobby.
+- **`words-game.spec.js`** — partie complète : tracé d'un mot au pointeur →
+  score → correction → résultats.
+- **`sudoku-game.spec.js`** — remplissage d'une grille de sudoku à l'interface →
+  victoire → résultats.
+
+La **CI** (GitHub Actions, `.github/workflows/ci.yml`) rejoue toute la suite à
+chaque push sur `main`/`claude/**` et sur chaque pull request, et publie le
+rapport Playwright en artefact.
+
 ## Hébergement — Cloudflare (gratuit)
 
 Le déploiement se fait via **Cloudflare Workers · Static Assets**, piloté par

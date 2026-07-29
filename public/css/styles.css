@@ -373,6 +373,13 @@ h2.title{font-family:var(--font-display); font-weight:400; font-size:clamp(40px,
   background:var(--paper-tile); border:1px solid var(--rule);
   font-family:var(--font-data); font-size:13px; letter-spacing:.08em; text-transform:uppercase}
 .wchip b{color:var(--valid); font-weight:500; letter-spacing:0; font-size:11px}
+/* mots cliquables -> définition */
+.wclick{cursor:pointer}
+.wclick:hover{color:var(--accent)}
+.wclick:hover b{color:var(--accent)}
+#def-body .rsec:last-of-type{margin-bottom:8px}
+#def-body h3{font-size:18px}
+#def-body .rsec p + p{margin-top:6px}
 .rsec{margin:0 0 20px}
 .rsec h3{margin:0 0 6px; font-family:var(--font-display); font-weight:400; font-size:22px; color:var(--ink)}
 .rsec p{margin:0; color:var(--muted); font-size:14px; line-height:1.65; max-width:46ch; text-wrap:pretty}

@@ -12,6 +12,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ----------------------------------------------------------------------------
+  # Gate anti-régression : toute la suite E2E doit être verte.
+  # À déclarer comme "required status check" sur la branche main (voir README).
+  # ----------------------------------------------------------------------------
   e2e:
     name: Tests E2E (Playwright)
     runs-on: ubuntu-latest
@@ -42,3 +46,40 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 14
+
+  # ----------------------------------------------------------------------------
+  # Garde TDD : sur une PR vers main, un changement de logique de jeu
+  # (public/js/, hors vendor) DOIT s'accompagner d'un changement dans tests/.
+  # Contournement explicite et traçable : poser le label "skip-tdd-guard" sur la PR.
+  # ----------------------------------------------------------------------------
+  tdd-guard:
+    name: Garde TDD (tests obligatoires)
+    if: >-
+      github.event_name == 'pull_request' &&
+      !contains(github.event.pull_request.labels.*.name, 'skip-tdd-guard')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Logique modifiée ⇒ test modifié
+        run: |
+          set -euo pipefail
+          BASE="${{ github.base_ref }}"
+          git fetch --no-tags origin "$BASE"
+          CHANGED="$(git diff --name-only "origin/$BASE...HEAD")"
+          echo "Fichiers modifiés dans la PR :"
+          echo "$CHANGED" | sed 's/^/  - /'
+
+          LOGIC="$(echo "$CHANGED" | grep -E '^public/js/' | grep -v '/vendor/' || true)"
+          TESTS="$(echo "$CHANGED" | grep -E '^tests/' || true)"
+
+          if [ -n "$LOGIC" ] && [ -z "$TESTS" ]; then
+            echo "::error::La logique du jeu a changé (public/js/) sans aucun test associé (tests/)."
+            echo "TDD : écris/mets à jour un test qui décrit le comportement attendu AVANT de coder."
+            echo "Cas légitime sans test (refactor pur, etc.) ? Pose le label 'skip-tdd-guard' sur la PR."
+            exit 1
+          fi
+          echo "✓ Garde TDD respectée."

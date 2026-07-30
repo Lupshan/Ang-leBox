@@ -54,3 +54,6 @@ npm run report                    # rapport HTML du dernier run
 - Les tests ne doivent **dépendre d'aucun CDN externe** : le harnais coupe les
   requêtes de polices (voir `tests/support.js`). Garder cette indépendance.
 - Toute nouvelle logique dans `app.js` doit venir avec ses tests dans `tests/`.
+  La CI l'**impose** : une PR qui modifie `public/js/` (hors `vendor/`) sans
+  toucher à `tests/` échoue (job « Garde TDD »). Sur `main`, le merge est bloqué
+  tant que les tests E2E ne sont pas verts (voir README).

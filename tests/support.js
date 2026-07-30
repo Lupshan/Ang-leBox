@@ -21,6 +21,19 @@ async function gotoApp(page) {
   //  qu'après son timeout. On l'avorte pour un démarrage instantané et stable —
   //  seul le rendu des polices change, jamais la logique.)
   await page.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
+  // Neutralise le P2P (Trystero/Nostr) : on sert un module vide à la place du
+  // vendor, si bien que `window.Trystero` reste indéfini et l'app tourne en
+  // SOLO déterministe. Indispensable pour l'isolation : sur un réseau ouvert
+  // (CI), Trystero se connecte aux relais Nostr et deux tests créant une room
+  // de même id se voient via les relais → l'un perd le statut d'hôte et le
+  // bouton « Lancer » est masqué. Le solo couvre tous ces flux à un joueur.
+  await page.route('**/js/vendor/trystero.min.js', (r) =>
+    r.fulfill({
+      status: 200,
+      contentType: 'application/javascript; charset=utf-8',
+      body: '/* Trystero neutralisé pour les tests E2E (jeu en solo). */',
+    }),
+  );
   await page.goto('/');
   // `loadDict()` retire l'overlay de chargement et remplit WORDS quand c'est prêt.
   await expect(page.locator('#loading')).toHaveClass(/hide/, { timeout: 30_000 });

@@ -1007,6 +1007,17 @@ function cleanWiki(s){
   s=s.replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&#39;|&apos;/g,"'");
   return s.replace(/^\s*[:,;–—\-]+\s*/,'').replace(/\s+/g,' ').trim();                  // ponctuation orpheline en tête
 }
+// mots grammaticaux à ignorer quand on cherche le mot de base d'une flexion
+const GRAM_TERMS=new Set(['indicatif','subjonctif','impératif','imperatif','conditionnel','participe','infinitif','présent','present','passé','passe','imparfait','futur','singulier','pluriel','masculin','féminin','feminin','simple','composé','compose']);
+// « mangent » → « manger » : le mot de base est le dernier lien [[…]] non grammatical de la ligne
+function lemmaFromLine(raw){
+  const links=[...String(raw).matchAll(/\[\[([^\]|#]+)(?:[#|][^\]]*)?\]\]/g)].map(m=>(m[1]||'').trim()).filter(Boolean);
+  const cand=links.filter(l=>!GRAM_TERMS.has(l.toLowerCase()));
+  if(cand.length)return cand[cand.length-1];
+  if(links.length)return links[links.length-1];
+  const t=String(raw).match(/\{\{lien\|([^|}]+)/); // repli : {{lien|manger|fr}}
+  return t?(t[1]||'').trim():'';
+}
 function parseFrWikitext(wt){
   wt=String(wt||'').replace(/\r/g,'');
   // 1) isoler la section de langue française : == {{langue|fr}} == … jusqu'au prochain titre de niveau 2
@@ -1019,19 +1030,20 @@ function parseFrWikitext(wt){
       slice=wt.slice(start,end);break;
     }
   }
-  // 2) parcourir les sous-sections {{S|type|fr}} et collecter les lignes « # »
-  const groups=[];let cur=null;
+  // 2) parcourir les sous-sections {{S|type|fr[|flexion]}} et collecter les lignes « # »
+  const groups=[];let cur=null;const lemmas=[];
   for(const raw of slice.split('\n')){
     const line=raw.trimEnd();
-    const h=line.match(/^===+[ \t]*\{\{S\|([^|}]+)/);
-    if(h){const key=(h[1]||'').trim().toLowerCase();cur={pos:POS_LABEL[key]||(key.charAt(0).toUpperCase()+key.slice(1)),defs:[]};groups.push(cur);continue;}
+    const h=line.match(/^===+[ \t]*\{\{S\|([^|}]+)((?:\|[^}]*)?)/);
+    if(h){const key=(h[1]||'').trim().toLowerCase();const flex=/\bflexion\b/.test((h[2]||'').toLowerCase());cur={pos:POS_LABEL[key]||(key.charAt(0).toUpperCase()+key.slice(1)),defs:[],flex:flex};groups.push(cur);continue;}
     if(/^#[^#*:]/.test(line)||/^#\s+\S/.test(line)){          // définition de 1er niveau (pas #*, #:, ##)
-      if(!cur){cur={pos:'Définition',defs:[]};groups.push(cur);}
+      if(!cur){cur={pos:'Définition',defs:[],flex:false};groups.push(cur);}
+      if(cur.flex){const lem=lemmaFromLine(line);if(lem&&!lemmas.includes(lem))lemmas.push(lem);} // flexion → mémorise le mot de base
       const d=cleanWiki(line);
       if(d&&cur.defs.length<4)cur.defs.push(d);
     }
   }
-  return groups.filter(g=>g.defs.length).slice(0,3);
+  return {sections:groups.filter(g=>g.defs.length).slice(0,3),lemmas:lemmas};
 }
 async function restDef(title){
   const url='https://fr.wiktionary.org/w/api.php?origin=*&format=json&formatversion=2&redirects=1&action=parse&prop=wikitext&page='+encodeURIComponent(title);
@@ -1040,8 +1052,8 @@ async function restDef(title){
   const j=await r.json();
   const p=j&&j.parse;const wt=p&&(typeof p.wikitext==='string'?p.wikitext:(p.wikitext&&p.wikitext['*']));
   if(!wt)return null;
-  const sections=parseFrWikitext(wt);
-  return sections.length?{title:p.title||title,sections}:null;
+  const {sections,lemmas}=parseFrWikitext(wt);
+  return sections.length?{title:p.title||title,sections:sections,lemmas:lemmas}:null;
 }
 async function fetchDef(word){
   if(word in defCache)return defCache[word];
@@ -1053,6 +1065,14 @@ async function fetchDef(word){
       if(s.ok){const hit=(((await s.json()).query||{}).search||[])[0];
         if(hit&&hit.title&&hit.title.toLowerCase()!==word)res=await restDef(hit.title);}
     }catch(e){}
+  }
+  if(res&&res.lemmas&&res.lemmas.length){ // flexion : on ajoute la définition du/des mot(s) de base
+    res.base=[];
+    for(const lem of res.lemmas.slice(0,2)){
+      if(lem.toLowerCase()===word)continue;
+      let br=null;try{br=await restDef(lem);}catch(e){}
+      if(br&&br.sections.length)res.base.push({word:br.title||lem,sections:br.sections});
+    }
   }
   defCache[word]=res;
   return res;
@@ -1069,9 +1089,15 @@ function openDefinition(word){
     fetchDef(w).then(res=>{
       if(!res){st.textContent='Pas de définition trouvée pour « '+w+' ».';db.innerHTML=linkBtn;return;}
       st.textContent='';
-      db.innerHTML=res.sections.map(sec=>
+      const secHtml=res.sections.map(sec=>
         `<div class="rsec"><h3>${escapeHtml(sec.pos||'Définition')}</h3>${sec.defs.map(d=>`<p>${escapeHtml(d)}</p>`).join('')}</div>`
-      ).join('')+`<p class="modal-note" style="margin-top:12px">Source : <a href="https://fr.wiktionary.org/wiki/${encodeURIComponent(res.title)}" target="_blank" rel="noopener noreferrer">Wiktionnaire</a> — CC BY-SA</p>`;
+      ).join('');
+      const baseHtml=(res.base||[]).map(b=>
+        `<div class="rsec-base"><div class="rsec-base-h">Sens de « ${escapeHtml(b.word)} »</div>`+
+        b.sections.map(sec=>`<div class="rsec"><h3>${escapeHtml(sec.pos||'Définition')}</h3>${sec.defs.map(d=>`<p>${escapeHtml(d)}</p>`).join('')}</div>`).join('')+
+        `</div>`
+      ).join('');
+      db.innerHTML=secHtml+baseHtml+`<p class="modal-note" style="margin-top:12px">Source : <a href="https://fr.wiktionary.org/wiki/${encodeURIComponent(res.title)}" target="_blank" rel="noopener noreferrer">Wiktionnaire</a> — CC BY-SA</p>`;
     }).catch(()=>{st.textContent='Définition indisponible (pas de connexion ?).';db.innerHTML=linkBtn;});
   });
 }

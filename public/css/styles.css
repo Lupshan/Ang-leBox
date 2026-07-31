@@ -382,6 +382,10 @@ h2.title{font-family:var(--font-display); font-weight:400; font-size:clamp(40px,
 .rsec h3{margin:0 0 6px; font-family:var(--font-display); font-weight:400; font-size:22px; color:var(--ink)}
 .rsec p{margin:0; color:var(--muted); font-size:14px; line-height:1.65; max-width:46ch; text-wrap:pretty}
 .rsec p b{color:var(--ink); font-weight:500}
+/* définition du mot de base d'une flexion (« mangent » → sens de « manger ») */
+.rsec-base{margin-top:16px; padding-top:14px; border-top:1px solid var(--rule)}
+.rsec-base-h{margin:0 0 10px; font-family:var(--font-data); font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted)}
+.rsec-base .rsec:last-child{margin-bottom:0}
 .rtable{display:flex; flex-direction:column; margin-top:8px}
 .rrow{display:flex; gap:14px; align-items:baseline; padding:9px 0; border-bottom:1px solid var(--rule-soft)}
 .rrow .rk{width:96px; flex:none; font-family:var(--font-data); font-size:11px; letter-spacing:.08em;

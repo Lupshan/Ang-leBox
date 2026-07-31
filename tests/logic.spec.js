@@ -251,3 +251,58 @@ test.describe('Helpers de texte', () => {
     expect(r.tMax).toBe('59:59');
   });
 });
+
+test.describe('Définitions — flexions (mot de base)', () => {
+  test('lemmaFromLine extrait le mot de base et ignore les termes grammaticaux', async ({ page }) => {
+    const r = await page.evaluate(() => ({
+      verbe: lemmaFromLine("# ''Troisième personne du pluriel de l'[[indicatif]] présent de'' [[manger]]."),
+      pluriel: lemmaFromLine("# ''Pluriel de'' [[cheval]]."),
+      cible: lemmaFromLine("# ''Première personne du singulier de'' [[appeler|appelle]]."),
+      lien: lemmaFromLine("# ''Féminin pluriel de'' {{lien|beau|fr}}."),
+      aucun: lemmaFromLine('# Une définition normale, sans lien.'),
+    }));
+    expect(r.verbe).toBe('manger'); // [[indicatif]] écarté, [[manger]] retenu
+    expect(r.pluriel).toBe('cheval');
+    expect(r.cible).toBe('appeler'); // la cible du lien, pas le texte affiché « appelle »
+    expect(r.lien).toBe('beau'); // repli sur {{lien|…}}
+    expect(r.aucun).toBe('');
+  });
+
+  test('parseFrWikitext repère une flexion et remonte le mot de base', async ({ page }) => {
+    const wt = [
+      '== {{langue|fr}} ==',
+      '=== {{S|verbe|fr|flexion}} ===',
+      "'''mangent'''",
+      "# ''Troisième personne du pluriel de l'[[indicatif]] présent de'' [[manger]].",
+    ].join('\n');
+    const r = await page.evaluate((wt) => parseFrWikitext(wt), wt);
+    expect(r.lemmas).toEqual(['manger']);
+    expect(r.sections).toHaveLength(1);
+    expect(r.sections[0].pos).toBe('Verbe');
+  });
+
+  test('un lemme normal (non-flexion) ne remonte aucun mot de base', async ({ page }) => {
+    const wt = [
+      '== {{langue|fr}} ==',
+      '=== {{S|nom|fr}} ===',
+      "'''maison'''",
+      "# Bâtiment servant de [[logis]], d'[[habitation]].",
+    ].join('\n');
+    const r = await page.evaluate((wt) => parseFrWikitext(wt), wt);
+    expect(r.lemmas).toEqual([]);
+    expect(r.sections[0].pos).toBe('Nom');
+  });
+
+  test("seule la section française est lue (l'anglais est ignoré)", async ({ page }) => {
+    const wt = [
+      '== {{langue|en}} ==',
+      '=== {{S|nom|en}} ===',
+      '# An English sense with a [[wrong]] link.',
+      '== {{langue|fr}} ==',
+      '=== {{S|verbe|fr|flexion}} ===',
+      "# ''Première personne du singulier de'' [[chanter]].",
+    ].join('\n');
+    const r = await page.evaluate((wt) => parseFrWikitext(wt), wt);
+    expect(r.lemmas).toEqual(['chanter']);
+  });
+});

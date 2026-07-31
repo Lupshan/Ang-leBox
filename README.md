@@ -33,6 +33,55 @@ python3 -m http.server 8000 -d public
 # puis ouvrir http://localhost:8000
 ```
 
+## Tests (E2E) & CI
+
+Le jeu étant 100 % côté client, la logique (dictionnaire, barème, RNG, génération
+de grille et de sudoku) est fortement couplée au DOM. Les tests sont donc des
+**tests bout-en-bout** qui pilotent un vrai Chromium via
+[Playwright](https://playwright.dev), sur le site servi tel qu'en prod.
+
+```bash
+npm install                 # installe Playwright (dev only)
+npx playwright install chromium   # télécharge le navigateur (une fois)
+npm test                    # lance toute la suite E2E
+npm run report              # ouvre le dernier rapport HTML
+```
+
+Playwright démarre lui-même le serveur statique (`python3 -m http.server`, cf.
+`playwright.config.js`) : rien d'autre à lancer. Ce qui est couvert (`tests/`) :
+
+- **`logic.spec.js`** — logique pure appelée directement dans la page
+  (`isWord`, barème `scoreOf`/`tileValue`, RNG déterministe, `genBoard` &
+  résolution, `genSudoku` à solution unique, helpers texte).
+- **`home.spec.js`** — accueil, modales Règles/Dictionnaire, création de room, lobby.
+- **`words-game.spec.js`** — partie complète : tracé d'un mot au pointeur →
+  score → correction → résultats.
+- **`sudoku-game.spec.js`** — remplissage d'une grille de sudoku à l'interface →
+  victoire → résultats.
+
+La **CI** (GitHub Actions, `.github/workflows/ci.yml`) rejoue toute la suite à
+chaque push sur `main`/`claude/**` et sur chaque pull request, et publie le
+rapport Playwright en artefact. Deux garde-fous :
+
+- **`Tests E2E (Playwright)`** — toute la suite doit être verte (anti-régression).
+- **`Garde TDD (tests obligatoires)`** — sur une PR, un changement de logique
+  (`public/js/`, hors `vendor/`) sans changement dans `tests/` fait échouer la CI.
+  Contournement explicite et traçable : poser le label `skip-tdd-guard` sur la PR.
+
+### Empêcher les régressions d'atteindre `main`
+La CI *détecte* les régressions ; pour qu'elle *bloque* le merge, active la
+protection de branche (une seule fois, réglage GitHub — un workflow ne peut pas
+le faire seul) :
+
+1. **Settings → Branches → Add branch ruleset** (ou *Branch protection rule*) ciblant `main`.
+2. Coche **Require a pull request before merging** (pas de push direct sur `main`).
+3. Coche **Require status checks to pass** puis sélectionne
+   **`Tests E2E (Playwright)`** et **`Garde TDD (tests obligatoires)`**.
+4. (Optionnel) **Require branches to be up to date before merging**.
+
+Résultat : toute modification passe par une PR, et ne peut fusionner dans `main`
+que si les tests E2E sont verts et la règle TDD respectée.
+
 ## Hébergement — Cloudflare (gratuit)
 
 Le déploiement se fait via **Cloudflare Workers · Static Assets**, piloté par

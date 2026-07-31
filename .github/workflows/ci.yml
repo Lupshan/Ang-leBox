@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'claude/**']
+  pull_request:
+    branches: [main]
+
+# Un seul run par branche : push et pull_request de la même branche se
+# partagent le groupe (github.head_ref sur PR, ref_name sur push → même valeur),
+# et les runs obsolètes sont annulés.
+concurrency:
+  group: ci-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  # ----------------------------------------------------------------------------
+  # Gate anti-régression : toute la suite E2E doit être verte.
+  # Tourne sur chaque push (main + branches claude/**) et sur les PR ; le check
+  # s'attache au commit et apparaît donc sur la PR même sans run "pull_request".
+  # À déclarer comme "required status check" sur main (voir README).
+  # ----------------------------------------------------------------------------
+  e2e:
+    name: Tests E2E (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Le serveur statique du test tourne sur python3 (déjà présent sur l'image).
+      - name: Install Playwright browser (Chromium)
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright tests
+        run: npx playwright test
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
+
+  # ----------------------------------------------------------------------------
+  # Garde TDD : un changement de logique de jeu (public/js/, hors vendor/) DOIT
+  # s'accompagner d'un changement dans tests/. On compare toujours à `main`, ce
+  # qui donne un vrai résultat pass/fail aussi bien sur push que sur PR (et non
+  # un "skipped" ambigu). Ne s'exécute pas sur un push de `main` lui-même.
+  # Contournements explicites : label "skip-tdd-guard" sur la PR, ou "[skip-tdd]"
+  # dans un message de commit de la branche.
+  # ----------------------------------------------------------------------------
+  tdd-guard:
+    name: Garde TDD (tests obligatoires)
+    if: >-
+      !(github.event_name == 'push' && github.ref == 'refs/heads/main') &&
+      !contains(github.event.pull_request.labels.*.name, 'skip-tdd-guard')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Logique modifiée ⇒ test modifié (comparé à main)
+        env:
+          BASE_REF: ${{ github.base_ref || 'main' }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "$BASE_REF"
+
+          # Diff par rapport au point de divergence avec main.
+          CHANGED="$(git diff --name-only "origin/$BASE_REF...HEAD")"
+          echo "Fichiers modifiés (vs $BASE_REF) :"
+          echo "$CHANGED" | sed 's/^/  - /'
+
+          # Échappatoire par message de commit (utile hors contexte PR).
+          if git log --format='%B' "origin/$BASE_REF..HEAD" | grep -q '\[skip-tdd\]'; then
+            echo "→ '[skip-tdd]' trouvé dans un message de commit : garde ignorée."
+            exit 0
+          fi
+
+          LOGIC="$(echo "$CHANGED" | grep -E '^public/js/' | grep -v '/vendor/' || true)"
+          TESTS="$(echo "$CHANGED" | grep -E '^tests/' || true)"
+
+          if [ -n "$LOGIC" ] && [ -z "$TESTS" ]; then
+            echo "::error::La logique du jeu a changé (public/js/) sans aucun test associé (tests/)."
+            echo "TDD : écris/mets à jour un test qui décrit le comportement attendu AVANT de coder."
+            echo "Refactor pur légitime ? Label 'skip-tdd-guard' sur la PR, ou '[skip-tdd]' dans un commit."
+            exit 1
+          fi
+          echo "✓ Garde TDD respectée."
